@@ -1,0 +1,8 @@
+{
+		"name": "SSXXX's Repository",
+		"description": "SSXXX's CloudStream extensions",
+		"manifestVersion": 1,
+		"pluginLists": [
+				"https://raw.githubusercontent.com/splitscale-lab/SSXXX/builds/plugins.json"
+		]
+}
