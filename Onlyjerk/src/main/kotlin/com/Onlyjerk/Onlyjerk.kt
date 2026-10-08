@@ -5,6 +5,7 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import android.util.Log
 import android.util.Base64
+import org.json.JSONObject
 
 class Onlyjerk : MainAPI() {
     override var mainUrl = "https://onlyjerk.net"
@@ -65,10 +66,35 @@ class Onlyjerk : MainAPI() {
         val poster = document.select("meta[property='og:image']").attr("content")
         val description = document.select("meta[property=og:description]").attr("content")
 
+        val recommendations =
+            document.select("div.td-tc-page-content:not(.td-tc-page-content-visible) div.td_block_inner div.td-module-thumb")
+                .mapNotNull {
+                    it.toSearchResult()?.apply {
+                        posterUrl = posterUrl?.trim()?.removeSurrounding("'")
+                    }
+                }
+
+       // val hasLoadMore =
+       //      document.selectFirst("div.td-tc-page-content:not(.td-tc-page-content-visible) div.td-load-more-wrap")
+
+        // val scripts = document.select("script")
+        //     .map { it.data() }
+        //     .filter {
+        //         it.contains("live_filter_cur_post_id") ||
+        //                 it.contains("tdi_88")
+        //     }
+        //
+        // scripts.forEachIndexed { index, script ->
+        //     // Split long scripts to avoid log truncation.
+        //     script.chunked(3000).forEachIndexed { part, chunk ->
+        //         Log.d("MyProviderDebug", "Script $index, part $part: $chunk")
+        //     }
+        // }
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             this.posterUrl = poster
             this.plot = description
+            this.recommendations = recommendations
         }
     }
 
