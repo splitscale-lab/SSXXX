@@ -5,16 +5,17 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 
 class internetchicks : MainAPI() {
-    override var mainUrl              = "https://internetchicks.com"
-    override var name                 = "Internetchicks"
-    override val hasMainPage          = true
-    override var lang                 = "en"
-    override val hasQuickSearch       = false
-    override val hasDownloadSupport   = true
-    override val supportedTypes       = setOf(TvType.NSFW)
-    override val vpnStatus            = VPNStatus.MightBeNeeded
+    override var mainUrl = "https://internetchicks.com"
+    override var name = "Internetchicks"
+    override val hasMainPage = true
+    override var lang = "en"
+    override val hasQuickSearch = false
+    override val hasDownloadSupport = true
+    override val supportedTypes = setOf(TvType.NSFW)
+    override val vpnStatus = VPNStatus.MightBeNeeded
 
     override val mainPage = mainPageOf(
+        "" to "Latest",
         "category/onlyfans" to "Onlyfans",
         "category/femdom" to "Femdom",
         "category/asmr" to "ASMR",
@@ -27,12 +28,12 @@ class internetchicks : MainAPI() {
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
         val document = app.get("$mainUrl/${request.data}/page/$page/").document
-        val home     = document.select("article").mapNotNull { it.toSearchResult() }
+        val home = document.select("article").mapNotNull { it.toSearchResult() }
 
         return newHomePageResponse(
-            list    = HomePageList(
-                name               = request.name,
-                list               = home,
+            list = HomePageList(
+                name = request.name,
+                list = home,
                 isHorizontalImages = true
             ),
             hasNext = true
@@ -40,8 +41,8 @@ class internetchicks : MainAPI() {
     }
 
     private fun Element.toSearchResult(): SearchResponse {
-        val title     = this.select("header > h2 > a").text().trim()
-        val href      = fixUrl(this.select("header > h2 > a").attr("href"))
+        val title = this.select("header > h2 > a").text().trim()
+        val href = fixUrl(this.select("header > h2 > a").attr("href"))
         val posterUrl = fixUrlNull(this.select("header > a > img").attr("data-src"))
         println(posterUrl)
         return newMovieSearchResponse(title, href, TvType.NSFW) {
@@ -49,28 +50,47 @@ class internetchicks : MainAPI() {
         }
     }
 
-    override suspend fun search(query: String, page : Int): SearchResponseList? {
+    private fun Element.toRelatedResult(): SearchResponse {
+        val recTitle = this.select(".relatedtitle > a").text().trim()
+        val rechref = fixUrl(this.select(".relatedtitle > a").attr("href"))
+        val recPoster = fixUrlNull(this.select(".relatedthumb > a > img").attr("data-src"))
+
+        return newMovieSearchResponse(recTitle, rechref, TvType.NSFW) {
+            this.posterUrl = recPoster
+        }
+    }
+
+    override suspend fun search(query: String, page: Int): SearchResponseList? {
         val document = app.get("${mainUrl}/page/$page/?s=$query&id=5036").document
         val results = document.select("article").mapNotNull { it.toSearchResult() }
-        val hasNext = if(results.isEmpty()) false else true
+        val hasNext = if (results.isEmpty()) false else true
         return newSearchResponseList(results, hasNext)
     }
 
     override suspend fun load(url: String): LoadResponse {
         val document = app.get(url).document
 
-        val title       = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
-        val poster      = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
+        val title = document.selectFirst("meta[property=og:title]")?.attr("content")?.trim().toString()
+        val poster = fixUrlNull(document.selectFirst("[property='og:image']")?.attr("content"))
         val description = document.selectFirst("meta[property=og:description]")?.attr("content")?.trim()
+        val recommendations = document.select("div.relatedposts-items div.relatedposts-item").mapNotNull {
+            it.toRelatedResult()
+        }
 
 
         return newMovieLoadResponse(title, url, TvType.NSFW, url) {
             this.posterUrl = poster
-            this.plot      = description
+            this.plot = description
+            this.recommendations = recommendations
         }
     }
 
-    override suspend fun loadLinks(data: String, isCasting: Boolean, subtitleCallback: (SubtitleFile) -> Unit, callback: (ExtractorLink) -> Unit): Boolean {
+    override suspend fun loadLinks(
+        data: String,
+        isCasting: Boolean,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ): Boolean {
         val document = app.get(data).document
         //val sources = mutableListOf<String>()
         document.select("article > div > div > button").forEach { button ->
